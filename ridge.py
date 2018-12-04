@@ -9,7 +9,7 @@ zs = lambda v: (v-v.mean(0))/v.std(0) ## z-score function
 
 ridge_logger = logging.getLogger("ridge_corr")
 
-def ridge(stim, resp, alpha, singcutoff=1e-10, normalpha=False, logger=ridge_logger):
+def vanilla_ridge(stim, resp, alpha, singcutoff=1e-10, normalpha=False, logger=ridge_logger):
     """Uses ridge regression to find a linear transformation of [stim] that approximates
     [resp]. The regularization parameter is [alpha].
 
@@ -341,7 +341,7 @@ def bootstrap_ridge(Rstim, Rresp, Pstim, Presp, alphas, nboots, chunklen, nchunk
 
     # Find weights
     logger.info("Computing weights for each response using entire training set..")
-    wt = ridge(Rstim, Rresp, valphas, singcutoff=singcutoff, normalpha=normalpha)
+    wt = vanilla_ridge(Rstim, Rresp, valphas, singcutoff=singcutoff, normalpha=normalpha)
 
     # Predict responses on prediction set
     logger.info("Predicting responses for predictions set..")
