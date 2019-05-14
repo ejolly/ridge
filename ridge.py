@@ -34,7 +34,8 @@ def vanilla_ridge(stim, resp, alpha, singcutoff=1e-10, normalpha=False, logger=r
     try:
         U,S,Vh = np.linalg.svd(stim, full_matrices=False)
     except np.linalg.LinAlgError:
-        logger.info("NORMAL SVD FAILED, trying more robust dgesvd..")
+        # logger.info("NORMAL SVD FAILED, trying more robust dgesvd..")
+        print("NORMAL SVD FAILED, trying more robust dgesvd..")
         from text.regression.svd_dgesvd import svd_dgesvd
         U,S,Vh = svd_dgesvd(stim, full_matrices=False)
 
@@ -112,11 +113,13 @@ def ridge_corr(Rstim, Pstim, Rresp, Presp, alphas, normalpha=False, corrmin=0.2,
 
     """
     ## Calculate SVD of stimulus matrix
-    logger.info("Doing SVD...")
+    # logger.info("Doing SVD...")
+    print("Doing SVD...")
     try:
         U,S,Vh = np.linalg.svd(Rstim, full_matrices=False)
     except np.linalg.LinAlgError:
-        logger.info("NORMAL SVD FAILED, trying more robust dgesvd..")
+        # logger.info("NORMAL SVD FAILED, trying more robust dgesvd..")
+        print("NORMAL SVD FAILED, trying more robust dgesvd..")
         from text.regression.svd_dgesvd import svd_dgesvd
         U,S,Vh = svd_dgesvd(Rstim, full_matrices=False)
 
@@ -127,11 +130,13 @@ def ridge_corr(Rstim, Pstim, Rresp, Presp, alphas, normalpha=False, corrmin=0.2,
     U = U[:,:ngoodS]
     S = S[:ngoodS]
     Vh = Vh[:ngoodS]
-    logger.info("Dropped %d tiny singular values.. (U is now %s)"%(nbad, str(U.shape)))
+    # logger.info("Dropped %d tiny singular values.. (U is now %s)"%(nbad, str(U.shape)))
+    print("Dropped %d tiny singular values.. (U is now %s)"%(nbad, str(U.shape)))
 
     ## Normalize alpha by the LSV norm
     norm = S[0]
-    logger.info("Training stimulus has LSV norm: %0.03f"%norm)
+    # logger.info("Training stimulus has LSV norm: %0.03f"%norm)
+    print("Training stimulus has LSV norm: %0.03f"%norm)
     if normalpha:
         nalphas = alphas * norm
     else:
@@ -146,7 +151,8 @@ def ridge_corr(Rstim, Pstim, Rresp, Presp, alphas, normalpha=False, corrmin=0.2,
     #Prespvar = Presp.var(0)
     Prespvar_actual = Presp.var(0)
     Prespvar = (np.ones_like(Prespvar_actual) + Prespvar_actual) / 2.0
-    logger.info("Average difference between actual & assumed Prespvar: %0.3f" % (Prespvar_actual - Prespvar).mean())
+    # logger.info("Average difference between actual & assumed Prespvar: %0.3f" % (Prespvar_actual - Prespvar).mean())
+    print("Average difference between actual & assumed Prespvar: %0.3f" % (Prespvar_actual - Prespvar).mean())
     Rcorrs = [] ## Holds training correlations for each alpha
     for na, a in zip(nalphas, alphas):
         #D = np.diag(S/(S**2+a**2)) ## Reweight singular vectors by the ridge parameter
@@ -182,7 +188,8 @@ def ridge_corr(Rstim, Pstim, Rresp, Presp, alphas, normalpha=False, corrmin=0.2,
                                   np.max(Rcorr),
                                   corrmin,
                                   (Rcorr>corrmin).sum()-(-Rcorr>corrmin).sum())
-        logger.info(log_msg)
+        # logger.info(log_msg)
+        print(log_msg)
 
     return Rcorrs
 
@@ -272,7 +279,8 @@ def bootstrap_ridge(Rstim, Rresp, Pstim, Presp, alphas, nboots, chunklen, nchunk
 
     Rcmats = []
     for bi in counter(range(nboots), countevery=1, total=nboots):
-        logger.info("Selecting held-out test set..")
+        # logger.info("Selecting held-out test set..")
+        print("Selecting held-out test set..")
         allinds = range(nresp)
         indchunks = list(zip(*[iter(allinds)]*chunklen))
         if non_random:
@@ -307,7 +315,8 @@ def bootstrap_ridge(Rstim, Rresp, Pstim, Presp, alphas, nboots, chunklen, nchunk
             raise ValueError("You must run at least one cross-validation step to assign "
                              "different alphas to each response.")
 
-        logger.info("Finding best alpha for each voxel..")
+        # logger.info("Finding best alpha for each voxel..")
+        print("Finding best alpha for each voxel..")
         if joined is None:
             # Find best alpha for each voxel
             meanbootcorrs = allRcorrs.mean(2)
@@ -322,7 +331,8 @@ def bootstrap_ridge(Rstim, Rresp, Pstim, Presp, alphas, nboots, chunklen, nchunk
                 bestalpha = np.argmax(jcorrs)
                 valphas[jl] = alphas[bestalpha]
     else:
-        logger.info("Finding single best alpha..")
+        # logger.info("Finding single best alpha..")
+        print("Finding single best alpha..")
         if nboots==0:
             if len(alphas)==1:
                 bestalphaind = 0
@@ -337,14 +347,17 @@ def bootstrap_ridge(Rstim, Rresp, Pstim, Presp, alphas, nboots, chunklen, nchunk
             bestalpha = alphas[bestalphaind]
 
         valphas = np.array([bestalpha]*nvox)
-        logger.info("Best alpha = %0.3f"%bestalpha)
+        # logger.info("Best alpha = %0.3f"%bestalpha)
+        print("Best alpha = %0.3f"%bestalpha)
 
     # Find weights
-    logger.info("Computing weights for each response using entire training set..")
+    # logger.info("Computing weights for each response using entire training set..")
+    print("Computing weights for each response using entire training set..")
     wt = vanilla_ridge(Rstim, Rresp, valphas, singcutoff=singcutoff, normalpha=normalpha)
 
     # Predict responses on prediction set
-    logger.info("Predicting responses for predictions set..")
+    # logger.info("Predicting responses for predictions set..")
+    print("Predicting responses for predictions set..")
     pred = np.dot(Pstim, wt)
 
     # Find prediction correlations
