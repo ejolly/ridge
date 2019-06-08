@@ -549,7 +549,7 @@ def bootstrap_ridge(
     # Find best alphas
     if nboots > 0:
         # allRcorrs = np.dstack(Rcmats)
-        allRcorrs = np.dstack(e[0] for e in out)
+        allRcorrs = np.dstack([e[0] for e in out])
     else:
         allRcorrs = None
 
