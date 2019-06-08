@@ -1,8 +1,7 @@
 # import scipy
 import numpy as np
 import logging
-from .utils import mult_diag, counter, arr_col_corr, check_random_state
-import random
+from .utils import mult_diag, arr_col_corr, check_random_state
 import itertools as itools
 from joblib import Parallel, delayed
 

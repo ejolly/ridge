@@ -1,16 +1,21 @@
 # ridge  
 
+# Note
 This is a light weight package for estimating ridge-regressions very quickly. It's a modified and updated fork based on [Alex Huth's original implementation](https://github.com/alexhuth/ridge). 
 
-## Explanation  
+## Notable Updates  
 
-Ridge regression is [regularized linear-model](https://www.wikiwand.com/en/Tikhonov_regularization). It tries to solve a similar problem as [Ordinary Least Squares](https://www.wikiwand.com/en/Ordinary_least_squares) while also minimizing ("shrink") the size of each coefficient squared ("L2 regularization). This often improves out of sample predictions, reduces overfitting, and helps deal with multi-collinearity amongst features, especially if there are more features than observations `n < p`. However, there is no easy way to automatically determine the amount of shrinkage required, therefore methods like cross-validation help to iterate through multiple possible values and determine the best via prediction within the training set. 
+- Installs as a python package now `pip install git+https://github.com/ejolly/ridge`
+- Validation on test set via correlation metric is much faster now (10x-15x speed up depending on data size)
+- `bootstrap_ridge` can now perform bootstrapped alpha-search in parallel using the `n_jobs` argument (*warning*: be sure the system you're running parallelization on has sufficient RAM give data size,  otherwise `n_job` > 1 will actually be slower! Recommend starting with `n_jobs = 2` and potentially increasing from there; you can play with the `backend = 'threading' or 'multiprocessing'` too)
+- `bootstrap_ridge` can also handle "grouped" data (e.g. vstacked runs of different subjects, assuming run length is the same across subjects) such that alpha search is performed using leave-one-subject out. This is similar to `sklearn`'s `LeaveOneGroupOut` where `group == subject identifier`. To use this mode,set `non_random = True`, `chunklen = number of TRs per run`, `nchunks = 1` and `nboots = number of subjects`. 
 
-This is an implementation that takes advantage of some linear algebra tricks to do very efficient cross validation. This method is particularly useful when the number of models that you are trying to fit simultaneously is very large (thousands to tens of thousands), the number of features is very large (thousands), and the number of data points for each model is very large (thousands). 
+# Description
+This is an implementation of [ridge regression](http://en.wikipedia.org/wiki/Tikhonov_regularization) (aka L2-regularized regression or Tikhonov regression) that takes advantage of some linear algebra tricks to do very efficient cross validation. This method is particularly useful when the number of models that you are trying to fit simultaneously is very large (thousands to tens of thousands), the number of features is very large (thousands), and the number of data points for each model is very large (thousands). 
 
 Even for a pretty modest ridge regression problem (20k models, 2k features, 1k data points), this method takes 9x less time to fit (80 seconds vs. 718 seconds) versus scikit-learn's cross validated ridge regression (not [GCV](http://en.wikipedia.org/wiki/Tikhonov_regularization#Determination_of_the_Tikhonov_factor)).
 
-[Alex Huth's original code](https://github.com/alexhuth/ridge) was developed mainly for building voxel-wise models of fMRI data, where we often want to fit tens of thousands of models simultaneously (1 for each voxel) with thousands of features and thousands of data points.
+The code was developed mainly for building voxel-wise models of fMRI data, where we often want to fit tens of thousands of models simultaneously (1 for each voxel) with thousands of features and thousands of data points.
 
 ### Ridge regression (in general)
 The goal of ridge regression is to find a linear transformation of your feature matrix, `X`, that best approximates your observed data, `Y`. (Because this code was developed for use in fMRI analyses, we use the terms "stimuli" to refer to `X` and "responses" to refer to `Y`.) The linear transformation takes the form of a weight matrix, `B`, such that `Y ~ X * B`.
