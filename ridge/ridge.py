@@ -1,9 +1,10 @@
 # import scipy
 import numpy as np
 import logging
-from .utils import mult_diag, counter, arr_col_corr
+from .utils import mult_diag, counter, arr_col_corr, check_random_state
 import random
 import itertools as itools
+from joblib import Parallel, delayed
 
 
 def make_logger(logging_style, verbose):
@@ -360,6 +361,40 @@ def ridge_corr(
     return Rcorrs
 
 
+def _fit_chunk(nresp, chunklen, nchunks, idx, Rstim, Rresp, alphas, corrmin, singcutoff, normalpha, use_corr, logger, verbose, non_random, random_state):
+    
+    random_state = check_random_state(random_state)
+    allinds = range(nresp)
+    indchunks = list(zip(*[iter(allinds)] * chunklen))
+    if non_random:
+        heldinds = list(itools.chain(*indchunks[idx: idx + 1]))
+    else:
+        random_state.shuffle(indchunks)
+        heldinds = list(itools.chain(*indchunks[:nchunks]))
+    notheldinds = list(set(allinds) - set(heldinds))
+
+    RRstim = Rstim[notheldinds, :]
+    PRstim = Rstim[heldinds, :]
+    RRresp = Rresp[notheldinds, :]
+    PRresp = Rresp[heldinds, :]
+
+    # Run ridge regression using this test set
+    Rcmat = ridge_corr(
+        RRstim,
+        PRstim,
+        RRresp,
+        PRresp,
+        alphas,
+        corrmin=corrmin,
+        singcutoff=singcutoff,
+        normalpha=normalpha,
+        use_corr=use_corr,
+        logger=logger,
+        verbose=verbose
+    )
+    return Rcmat, heldinds
+
+
 def bootstrap_ridge(
     Rstim,
     Rresp,
@@ -379,6 +414,9 @@ def bootstrap_ridge(
     non_random=False,
     logger='logger',
     verbose=2,
+    random_state=None,
+    n_jobs=1,
+    backend='threading'
 ):
     """Uses ridge regression with a bootstrapped held-out set to get optimal alpha values for each response.
     [nchunks] random chunks of length [chunklen] will be taken from [Rstim] and [Rresp] for each regression
@@ -469,49 +507,54 @@ def bootstrap_ridge(
     else:
         log_iterations = False
     nresp, nvox = Rresp.shape
-    valinds = []  # Will hold the indices into the validation data for each bootstrap
+    # valinds = []  # Will hold the indices into the validation data for each bootstrap
 
-    Rcmats = []
-    for bi in counter(range(nboots), countevery=1, total=nboots):
-        boot_logger("Selecting held-out test set..")
-        allinds = range(nresp)
-        indchunks = list(zip(*[iter(allinds)] * chunklen))
-        if non_random:
-            heldinds = list(itools.chain(*indchunks[bi: bi + 1]))
-        else:
-            random.shuffle(indchunks)
-            heldinds = list(itools.chain(*indchunks[:nchunks]))
-        notheldinds = list(set(allinds) - set(heldinds))
-        valinds.append(heldinds)
+    random_state = check_random_state(random_state)
+    seeds = random_state.randint(np.iinfo(np.int32).max, size=nboots)
+    out = Parallel(n_jobs=n_jobs, backend=backend)(delayed(_fit_chunk)(nresp, chunklen, nchunks, i, Rstim, Rresp, alphas, corrmin, singcutoff, normalpha, use_corr, logger, log_iterations, non_random, seeds[i]) for i in range(nboots))
+    # Rcmats = []
+    # for bi in counter(range(nboots), countevery=1, total=nboots):
+    #     boot_logger("Selecting held-out test set..")
+    #     allinds = range(nresp)
+    #     indchunks = list(zip(*[iter(allinds)] * chunklen))
+    #     if non_random:
+    #         heldinds = list(itools.chain(*indchunks[bi: bi + 1]))
+    #     else:
+    #         random.shuffle(indchunks)
+    #         heldinds = list(itools.chain(*indchunks[:nchunks]))
+    #     notheldinds = list(set(allinds) - set(heldinds))
+    #     valinds.append(heldinds)
 
-        RRstim = Rstim[notheldinds, :]
-        PRstim = Rstim[heldinds, :]
-        RRresp = Rresp[notheldinds, :]
-        PRresp = Rresp[heldinds, :]
+    #     RRstim = Rstim[notheldinds, :]
+    #     PRstim = Rstim[heldinds, :]
+    #     RRresp = Rresp[notheldinds, :]
+    #     PRresp = Rresp[heldinds, :]
 
-        # Run ridge regression using this test set
-        Rcmat = ridge_corr(
-            RRstim,
-            PRstim,
-            RRresp,
-            PRresp,
-            alphas,
-            corrmin=corrmin,
-            singcutoff=singcutoff,
-            normalpha=normalpha,
-            use_corr=use_corr,
-            logger=logger,
-            verbose=log_iterations
-        )
+    #     # Run ridge regression using this test set
+    #     Rcmat = ridge_corr(
+    #         RRstim,
+    #         PRstim,
+    #         RRresp,
+    #         PRresp,
+    #         alphas,
+    #         corrmin=corrmin,
+    #         singcutoff=singcutoff,
+    #         normalpha=normalpha,
+    #         use_corr=use_corr,
+    #         logger=logger,
+    #         verbose=log_iterations
+    #     )
 
-        Rcmats.append(Rcmat)
+    #     Rcmats.append(Rcmat)
 
     # Find best alphas
     if nboots > 0:
-        allRcorrs = np.dstack(Rcmats)
+        # allRcorrs = np.dstack(Rcmats)
+        allRcorrs = np.dstack(e[0] for e in out)
     else:
         allRcorrs = None
 
+    valinds = [e[1] for e in out]
     if not single_alpha:
         if nboots == 0:
             raise ValueError(
