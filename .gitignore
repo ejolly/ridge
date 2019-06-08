@@ -1,0 +1,11 @@
+*.html
+*.DS_Store
+*.ipynb_checkpoints
+*.pyc
+*.ipynb
+.cache/*
+dist/*
+*.egg*
+.tox/*
+.pytest_cache/*
+dev
