@@ -2,6 +2,17 @@ from scipy.stats import norm
 import numpy as np
 
 
+def arr_col_corr(x, y):
+    """
+    Quickly compute the correlation between corresponding pairs of columns in x and y. ~15x faster than building a list with np.corrcoef
+    """
+    x = x - x.mean(0)
+    y = y - y.mean(0)
+    num = (x * y).sum(0)
+    dom = (np.repeat(x.shape[0] - 1, x.shape[1])) * x.std(0, ddof=1) * y.std(0, ddof=1)
+    return num / dom
+
+
 def zscore(mat, return_unzvals=False):
     """Z-scores the rows of [mat] by subtracting off the mean and dividing
     by the standard deviation.

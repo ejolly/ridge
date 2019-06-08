@@ -1,8 +1,6 @@
-import numpy as np
-import logging
-from ridge import ridge, ridge_corr, bootstrap_ridge
 
-logging.basicConfig(level=logging.DEBUG)
+import numpy as np
+from ridge import bootstrap_ridge
 
 # Create some test data
 N = 200  # features
@@ -32,9 +30,12 @@ wt, corr, valphas, bscorrs, valinds = bootstrap_ridge(
     nboots=5,
     chunklen=10,
     nchunks=15,
-    return_wt=False,
+    return_wt=False
 )
 
 
 # Corr should increase quickly across "voxels". Last corr should be large (>0.9-ish).
 # wt should be very similar to realwt for last few voxels.
+
+
+
